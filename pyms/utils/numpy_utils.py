@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import copy
 
-
+###test
 def ensure_array(input):
     """Force a (potentially scalar) input to be an array."""
     if hasattr(input, "__len__") and not isinstance(input, str):
