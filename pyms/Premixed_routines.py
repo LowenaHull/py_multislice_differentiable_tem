@@ -24,6 +24,7 @@ from .py_multislice import (
 from .utils.torch_utils import (
     amplitude,
     get_device,
+    ensure_torch_array,
     crop_to_bandwidth_limit_torch,
     size_of_bandwidth_limited_array,
     torch_dtype_to_numpy,
@@ -1393,6 +1394,7 @@ def HRTEM(
     subslicing=False,
     P=None,
     T=None,
+    apply_ctf = True,
 ):
     """
     Perform a high-resolution transmission electron microscopy (HRTEM) simulation.
@@ -1486,29 +1488,48 @@ def HRTEM(
 
     # Convert thicknesses into number of slices for multislice
     nslices = thickness_to_slices(t_, structure.unitcell[2], subslicing, subslices)
-
     rsize = np.asarray(structure.unitcell[:2]) * np.asarray(tiling)
 
     # Option for focal series, just pass an array of defocii, this bit of
     # code will set up the lens transfer functions for each case
-    defocii = ensure_array(df)
+    if torch.is_tensor(df):
+        defocii = ensure_torch_array(df)
+    else:
+        defocii = ensure_array(df)
 
-    ctf = (
-        torch.from_numpy(
-            np.stack(
-                [
-                    make_contrast_transfer_function(
-                        bw_limit_size, rsize, eV, app, df=df_, aberrations=aberrations
-                    )
-                    for df_ in defocii
-                ]
+    if torch.is_tensor(df):
+        ctf = (
+            torch.tensor(
+                torch.stack(
+                    [
+                        make_contrast_transfer_function(
+                            bw_limit_size, rsize, eV, app, df=df_, aberrations=aberrations
+                        )
+                        for df_ in defocii
+                    ]
+                )
             )
+            .type(cdtype)
+            .to(device)
         )
-        .type(cdtype)
-        .to(device)
-    )
-    output = np.zeros((len(defocii), len(nslices), *bw_limit_size))
-
+        output = torch.zeros((len(defocii), len(nslices), *bw_limit_size)).type(cdtype).to(device)
+    
+    else:
+        ctf = (
+            torch.from_numpy(
+                np.stack(
+                    [
+                        make_contrast_transfer_function(
+                            bw_limit_size, rsize, eV, app, df=df_, aberrations=aberrations
+                        )
+                        for df_ in defocii
+                    ]
+                )
+            )
+            .type(cdtype)
+            .to(device)
+        )
+        output = np.zeros((len(defocii), len(nslices), *bw_limit_size))
     # Iteration over frozen phonon configurations
     for _ in tqdm(range(nfph), desc="Frozen phonon iteration", disable=tdisable):
         probe = plane_wave_illumination(
@@ -1528,18 +1549,26 @@ def HRTEM(
                 return_numpy=False,
                 device_type=device,
             )
-            output[:, it, ...] += (
-                amplitude(
-                    torch.fft.ifftn(
-                        ctf * crop_to_bandwidth_limit_torch(probe), dim=(-2, -1)
+            if apply_ctf:
+                output[:, it, ...] += (
+                    amplitude(
+                        torch.fft.ifftn(
+                            ctf * crop_to_bandwidth_limit_torch(probe), dim=(-2, -1)
+                        )
                     )
+                    .cpu()
+                    .numpy()
                 )
-                .cpu()
-                .numpy()
-            )
+            else:
+                output[:, it, ...] += (
+                    crop_to_bandwidth_limit_torch(probe)
+                )
 
     # Divide output by # of pixels to compensate for Fourier transform
-    return np.squeeze(output) / nfph
+    if apply_ctf:
+        return np.squeeze(output) / nfph
+    else:
+        return np.squeeze(output)
 
 
 def EFTEM(
