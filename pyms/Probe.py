@@ -1,6 +1,7 @@
 """Functions for emulating electron optics of a TEM."""
 
 import numpy as np
+import torch
 import copy
 from .utils.numpy_utils import q_space_array
 
@@ -128,6 +129,12 @@ def chi(q, qphi, lam, df=0.0, aberrations=[]):
         The aberration function, will be the same shape as `q`. This is used to
         calculate the probe wave function in reciprocal space.
     """
+    if torch.is_tensor(df):
+        if isinstance(q, np.ndarray):
+            q = torch.from_numpy(q)
+        if isinstance(qphi, np.ndarray):
+            qphi = torch.from_numpy(qphi)
+    
     qlam = q * lam
     chi_ = qlam ** 2 / 2 * df
     for ab in aberrations:
@@ -137,7 +144,10 @@ def chi(q, qphi, lam, df=0.0, aberrations=[]):
             / (ab.n + 1)
             * np.cos(ab.m * (qphi - float(ab.angle)))
         )
-    return 2 * np.pi * chi_ / lam
+    if torch.is_tensor(df):
+        return 2 * torch.pi * chi_ / lam
+    else:
+        return 2 * np.pi * chi_ / lam
 
 
 def make_contrast_transfer_function(
@@ -210,7 +220,10 @@ def make_contrast_transfer_function(
         app_ = convert_tilt_angles(app, app_units, real_dim, eV, invA_out=True)
 
     # Initialize the array to contain the CTF
-    CTF = np.zeros(pix_dim, dtype=complex)
+    if torch.is_tensor(df):
+        CTF = torch.zeros(pix_dim, dtype=torch.complex128)
+    else:
+        CTF = np.zeros(pix_dim, dtype=complex)
 
     # Calculate the magnitude of the reciprocal lattice grid
     # qarray1 accounts for a shift of the optic axis
@@ -229,7 +242,12 @@ def make_contrast_transfer_function(
 
     # Only calculate CTF for region within the aperture
     mask = qarray2 <= app_ ** 2
-    CTF[mask] = np.exp(-1j * chi(qarray1[mask], qphi[mask], 1.0 / k, df, aberrations))
+    if torch.is_tensor(df):
+        mask = torch.tensor(mask)
+    if torch.is_tensor(df):
+        CTF[mask] = torch.exp(-1j * chi(qarray1[mask], qphi[mask], 1.0 / k, df, aberrations))
+    else:
+        CTF[mask] = np.exp(-1j * chi(qarray1[mask], qphi[mask], 1.0 / k, df, aberrations))
     return CTF
 
 
