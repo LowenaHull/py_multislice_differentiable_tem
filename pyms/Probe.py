@@ -129,6 +129,7 @@ def chi(q, qphi, lam, df=0.0, aberrations=[]):
         The aberration function, will be the same shape as `q`. This is used to
         calculate the probe wave function in reciprocal space.
     """
+    
     if torch.is_tensor(df):
         if isinstance(q, np.ndarray):
             q = torch.from_numpy(q)
@@ -136,6 +137,7 @@ def chi(q, qphi, lam, df=0.0, aberrations=[]):
             qphi = torch.from_numpy(qphi)
     
     qlam = q * lam
+    
     chi_ = qlam ** 2 / 2 * df
     for ab in aberrations:
         chi_ += (

@@ -8,6 +8,7 @@ allows users to set up simulations faster and easier.
 """
 import numpy as np
 import torch
+
 from .py_multislice import (
     make_propagators,
     tqdm_handler,
@@ -42,6 +43,7 @@ from .Ionization import (
     tile_out_ionization_image,
     transition_potential_multislice,
 )
+
 from .Probe import (
     focused_probe,
     make_contrast_transfer_function,
