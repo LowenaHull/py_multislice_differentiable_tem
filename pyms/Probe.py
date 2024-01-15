@@ -36,13 +36,16 @@ class aberration:
         self.Krivanek = Krivanek
         self.Haider = Haider
         self.Description = Description
-        self.amplitude = amplitude
+        #self.amplitude = amplitude
+        self.amplitude = torch.tensor([amplitude], requires_grad = True)
         self.m = m
         self.n = n
         if m > 0:
-            self.angle = angle
+            #self.angle = angle
+            self.angle = torch.tensor([float(angle)], requires_grad = True)
         else:
-            self.angle = 0
+            #self.angle = 0
+            self.angle = torch.tensor([0.], requires_grad = True)
 
     def __str__(self):
         """Return a string describing the aberration."""
@@ -138,14 +141,30 @@ def chi(q, qphi, lam, df=0.0, aberrations=[]):
     
     qlam = q * lam
     
+    
+    # okay so the issue is, we are passing in aberration as a tensor value, but the code needs it's n value from the class
+    # so we need a way of keeping the n data while also optimising the tensor data
+    
+    
     chi_ = qlam ** 2 / 2 * df
-    for ab in aberrations:
+    #for ab in aberrations[1:]:
+    #    chi_ += (
+    #        qlam ** (ab.n + 1)
+    #        * float(ab.amplitude)
+    #        / (ab.n + 1)
+    #       * np.cos(ab.m * (qphi - float(ab.angle)))
+    #    )
+    
+    
+    for ab in aberrations[1:]:
         chi_ += (
-            qlam ** (ab.n + 1)
-            * float(ab.amplitude)
-            / (ab.n + 1)
-            * np.cos(ab.m * (qphi - float(ab.angle)))
+            qlam ** (ab[1] + 1) * float(ab[0]) / (ab[1] +1) * np.cos(ab[2] * (qphi - float(ab[3])))
         )
+        # ab[0] is the amplitude, ab[1] is n and ab[2] is m, ab[3] is the angle
+        # print(ab[0])
+        # so the print statement correctly identifies ab[0] as the amplitude (a tensor) 
+        # but also shows that it's value ISN'T changing
+    
     if torch.is_tensor(df):
         return 2 * torch.pi * chi_ / lam
     else:

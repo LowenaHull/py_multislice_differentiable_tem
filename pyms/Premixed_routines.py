@@ -1465,6 +1465,10 @@ def HRTEM(
     """
     tdisable, tqdm = tqdm_handler(showProgress)
     cdtype = real_to_complex_dtype_torch(dtype)
+    
+    print("Lowena-modified code")
+    print(torch.is_tensor(df)) # returns true
+        
 
     # Choose GPU if available and CPU if not
     device = get_device(device_type)
@@ -1494,27 +1498,37 @@ def HRTEM(
 
     # Option for focal series, just pass an array of defocii, this bit of
     # code will set up the lens transfer functions for each case
+    
     if torch.is_tensor(df):
         defocii = ensure_torch_array(df)
+        A1_data = ensure_torch_array(aberrations[1].amplitude.detach()) # added this # added detach part?
     else:
         defocii = ensure_array(df)
 
     if torch.is_tensor(df):
         ctf = (
             torch.tensor(
+                # so this creates a stack for every value of defocus in the defocus list
+                # need to modify this so it takes account of other aberrations
                 torch.stack(
                     [
                         make_contrast_transfer_function(
-                            bw_limit_size, rsize, eV, app, df=df_, aberrations=aberrations
+                            bw_limit_size, rsize, eV, app, df=df_, aberrations=[df, [A1_data, 1, 0, 0]] # janky for now
                         )
                         for df_ in defocii
+                        for value in A1_data # just starting with 1 other aberration for now
+                        # hmmmmm
                     ]
                 )
             )
             .type(cdtype)
             .to(device)
         )
-        output = torch.zeros((len(defocii), len(nslices), *bw_limit_size)).type(cdtype).to(device)
+        
+        # should modify this to also include other aberrations, not just defocs
+        # added the "len(A1_data)" part
+        # this might cause size issues?
+        output = torch.zeros((len(defocii), len(A1_data), len(nslices), *bw_limit_size)).type(cdtype).to(device) 
     
     else:
         ctf = (
