@@ -36,16 +36,16 @@ class aberration:
         self.Krivanek = Krivanek
         self.Haider = Haider
         self.Description = Description
-        #self.amplitude = amplitude
-        self.amplitude = torch.tensor([amplitude], requires_grad = True)
+        self.amplitude = amplitude
+        #self.amplitude = torch.tensor([amplitude], requires_grad = True)
         self.m = m
         self.n = n
         if m > 0:
-            #self.angle = angle
-            self.angle = torch.tensor([float(angle)], requires_grad = True)
+            self.angle = angle
+            #self.angle = torch.tensor([float(angle)], requires_grad = True)
         else:
-            #self.angle = 0
-            self.angle = torch.tensor([0.], requires_grad = True)
+            self.angle = 0
+            #self.angle = torch.tensor([0.], requires_grad = True)
 
     def __str__(self):
         """Return a string describing the aberration."""
@@ -89,23 +89,32 @@ def depth_of_field(eV, alpha):
     return 1.77 / wavev(eV) / alpha / alpha * 1e6
 
 
-def aberration_starter_pack():
+def aberration_starter_pack(torch_=False):
     """Create the set of aberrations up to fifth order."""
     aberrations = []
-    aberrations.append(aberration("C10", "C1", "Defocus          ", 0.0, 0.0, 1, 0))
-    aberrations.append(aberration("C12", "A1", "2-Fold astig.    ", 0.0, 0.0, 1, 2))
-    aberrations.append(aberration("C23", "A2", "3-Fold astig.    ", 0.0, 0.0, 2, 3))
-    aberrations.append(aberration("C21", "B2", "Axial coma       ", 0.0, 0.0, 2, 1))
-    aberrations.append(aberration("C30", "C3", "3rd order spher. ", 0.0, 0.0, 3, 0))
-    aberrations.append(aberration("C34", "A3", "4-Fold astig.    ", 0.0, 0.0, 3, 4))
-    aberrations.append(aberration("C32", "S3", "Axial star aber. ", 0.0, 0.0, 3, 2))
-    aberrations.append(aberration("C45", "A4", "5-Fold astig.    ", 0.0, 0.0, 4, 5))
-    aberrations.append(aberration("C43", "D4", "3-Lobe aberr.    ", 0.0, 0.0, 4, 3))
-    aberrations.append(aberration("C41", "B4", "4th order coma   ", 0.0, 0.0, 4, 1))
-    aberrations.append(aberration("C50", "C5", "5th order spher. ", 0.0, 0.0, 5, 0))
-    aberrations.append(aberration("C56", "A5", "6-Fold astig.    ", 0.0, 0.0, 5, 6))
-    aberrations.append(aberration("C52", "S5", "5th order star   ", 0.0, 0.0, 5, 2))
-    aberrations.append(aberration("C54", "R5", "5th order rosette", 0.0, 0.0, 5, 4))
+    
+    if torch_ == True:
+        x = torch.tensor([200.0])
+        y = torch.tensor([0.0])
+    else:
+        x = 200.0
+        y = 0.0
+
+    aberrations.append(aberration("C10", "C1", "Defocus          ", x, 0.0, 1, 0))
+    aberrations.append(aberration("C12", "A1", "2-Fold astig.    ", y, 0.0, 1, 2))
+    aberrations.append(aberration("C23", "A2", "3-Fold astig.    ", y, 0.0, 2, 3))
+    aberrations.append(aberration("C21", "B2", "Axial coma       ", y, 0.0, 2, 1))
+    aberrations.append(aberration("C30", "C3", "3rd order spher. ", y, 0.0, 3, 0))
+    aberrations.append(aberration("C34", "A3", "4-Fold astig.    ", y, 0.0, 3, 4))
+    aberrations.append(aberration("C32", "S3", "Axial star aber. ", y, 0.0, 3, 2))
+    aberrations.append(aberration("C45", "A4", "5-Fold astig.    ", y, 0.0, 4, 5))
+    aberrations.append(aberration("C43", "D4", "3-Lobe aberr.    ", y, 0.0, 4, 3))
+    aberrations.append(aberration("C41", "B4", "4th order coma   ", y, 0.0, 4, 1))
+    aberrations.append(aberration("C50", "C5", "5th order spher. ", y, 0.0, 5, 0))
+    aberrations.append(aberration("C56", "A5", "6-Fold astig.    ", y, 0.0, 5, 6))
+    aberrations.append(aberration("C52", "S5", "5th order star   ", y, 0.0, 5, 2))
+    aberrations.append(aberration("C54", "R5", "5th order rosette", y, 0.0, 5, 4))
+    
     return aberrations
 
 
@@ -142,11 +151,20 @@ def chi(q, qphi, lam, df=0.0, aberrations=[]):
     qlam = q * lam
     
     
-    # okay so the issue is, we are passing in aberration as a tensor value, but the code needs it's n value from the class
-    # so we need a way of keeping the n data while also optimising the tensor data
-    
-    
     chi_ = qlam ** 2 / 2 * df
+    
+    
+    # Removed float so aberrations would work
+
+    for ab in aberrations[1:]:
+        chi_ += (
+            qlam ** (ab.n + 1)
+            * ab.amplitude
+            / (ab.n + 1)
+           * np.cos(ab.m * (qphi - ab.angle))
+        )
+    
+    # Original code
     #for ab in aberrations[1:]:
     #    chi_ += (
     #        qlam ** (ab.n + 1)
@@ -154,17 +172,14 @@ def chi(q, qphi, lam, df=0.0, aberrations=[]):
     #        / (ab.n + 1)
     #       * np.cos(ab.m * (qphi - float(ab.angle)))
     #    )
-    
-    
-    for ab in aberrations[1:]:
-        chi_ += (
-            qlam ** (ab[1] + 1) * float(ab[0]) / (ab[1] +1) * np.cos(ab[2] * (qphi - float(ab[3])))
-        )
-        # ab[0] is the amplitude, ab[1] is n and ab[2] is m, ab[3] is the angle
-        # print(ab[0])
-        # so the print statement correctly identifies ab[0] as the amplitude (a tensor) 
-        # but also shows that it's value ISN'T changing
-    
+
+    # Defunct code
+    #for ab in aberrations[1:]:
+    #    chi_ += (
+    #        qlam ** (ab[1] + 1) * ab[0] / (ab[1] +1) * np.cos(ab[2] * (qphi - ab[3]))
+    #    )
+    # ab[0] is the amplitude, ab[1] is n and ab[2] is m, ab[3] is the angle
+
     if torch.is_tensor(df):
         return 2 * torch.pi * chi_ / lam
     else:

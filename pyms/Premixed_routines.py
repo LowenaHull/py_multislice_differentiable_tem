@@ -1501,9 +1501,11 @@ def HRTEM(
     
     if torch.is_tensor(df):
         defocii = ensure_torch_array(df)
-        A1_data = ensure_torch_array(aberrations[1].amplitude.detach()) # added this # added detach part?
+        #A1_data = ensure_torch_array(aberrations[1].amplitude) # removed detach
     else:
         defocii = ensure_array(df)
+        
+    print(len(aberrations))
 
     if torch.is_tensor(df):
         ctf = (
@@ -1513,11 +1515,10 @@ def HRTEM(
                 torch.stack(
                     [
                         make_contrast_transfer_function(
-                            bw_limit_size, rsize, eV, app, df=df_, aberrations=[df, [A1_data, 1, 0, 0]] # janky for now
+                            bw_limit_size, rsize, eV, app, df=df_, aberrations=aberrations
                         )
                         for df_ in defocii
-                        for value in A1_data # just starting with 1 other aberration for now
-                        # hmmmmm
+                        #for value in A1_data # if I get rid of this does it still work? YES
                     ]
                 )
             )
@@ -1528,7 +1529,8 @@ def HRTEM(
         # should modify this to also include other aberrations, not just defocs
         # added the "len(A1_data)" part
         # this might cause size issues?
-        output = torch.zeros((len(defocii), len(A1_data), len(nslices), *bw_limit_size)).type(cdtype).to(device) 
+        # removed does it still work?
+        output = torch.zeros((len(defocii), len(nslices), *bw_limit_size)).type(cdtype).to(device) 
     
     else:
         ctf = (
