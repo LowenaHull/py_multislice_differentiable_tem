@@ -789,7 +789,8 @@ class structure:
                 # for atomic thermal motion
                 disp = (
                     torch.randn(self.atoms.shape[0], 2, dtype=realdtype, device=device)
-                    * urms
+                    * 0.001
+                    
                 )
 
                 # If using fractional occupancy force atoms occupying equivalent
