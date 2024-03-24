@@ -7,7 +7,7 @@ setup(
     description="An open-source Python multislice package",
     author="Hamish Brown",
     author_email="hamishgallowaybrown@gmail.com",
-    url="https://github.com/HamishGBrown/py_multislice/",
+    url= "https://github.com/LowenaHull/py_multislice_differentiable_tem/", #"https://github.com/HamishGBrown/py_multislice/",
     packages=find_packages(),
     install_requires=[
         "h5py >= 2.10",
